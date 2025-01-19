@@ -1,49 +1,50 @@
 const fs = require('fs');
 const csv = require('csv-parser');
 
-// Delete existing files if they exist
-try {
-    fs.unlinkSync('canada.txt');
-    console.log('canada.txt file deleted');
-} catch (err) {
-    console.log('canada.txt file does not exist');
-}
+// Utility function to delete a specified file if it exists on the filesystem
+const deleteFile = (fileName) => {
+  try {
+    fs.unlinkSync(fileName);
+    console.log(`Successfully deleted existing file: ${fileName}`);
+  } catch (err) {
+    console.log(`File does not exist: ${fileName}. No action taken.`);
+  }
+};
 
-try {
-    fs.unlinkSync('usa.txt');
-    console.log('usa.txt file deleted');
-} catch (err) {
-    console.log('usa.txt file does not exist');
-}
+// Ensure the output files are removed before processing to avoid appending to old data
+deleteFile('canada.txt');
+deleteFile('usa.txt');
 
-// Create write streams for output files
+// Create writable streams to generate output files for filtered data
 const canadaStream = fs.createWriteStream('canada.txt');
 const usaStream = fs.createWriteStream('usa.txt');
 
-// Write headers to both files
+// Add headers to the output files to match the input file structure
 canadaStream.write('country,year,population\n');
 usaStream.write('country,year,population\n');
 
-// Read and filter the CSV data
+// Read data from the input CSV file, process it, and filter based on country
 fs.createReadStream('input_countries.csv')
-    .pipe(csv())
-    .on('data', (row) => {
-        // Create the output line
-        const line = `${row.country},${row.year},${row.population}\n`;
-        
-        // Write to appropriate file based on country
-        if (row.country === 'Canada') {
-            canadaStream.write(line);
-        } else if (row.country === 'United States') {
-            usaStream.write(line);
-        }
-    })
-    .on('end', () => {
-        // Close the write streams
-        canadaStream.end();
-        usaStream.end();
-        console.log('CSV file processing completed');
-    })
-    .on('error', (error) => {
-        console.error('Error reading CSV file:', error);
-    });
+  .pipe(csv())
+  .on('data', (row) => {
+    // Normalize the country name to lowercase for consistent comparison
+    const country = row.country.toLowerCase();
+    const line = `${country},${row.year},${row.population}\n`;
+
+    // Route the data to the appropriate file based on the country
+    if (country === 'canada') {
+      canadaStream.write(line);
+    } else if (country === 'united states') {
+      usaStream.write(line);
+    }
+  })
+  .on('end', () => {
+    // Safely close the write streams after processing all data
+    canadaStream.end();
+    usaStream.end();
+    console.log('Data filtering and file creation completed successfully.');
+  })
+  .on('error', (error) => {
+    // Log any errors encountered while reading the input file
+    console.error('An error occurred while processing the CSV file:', error.message);
+  });
